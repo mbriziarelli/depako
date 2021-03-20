@@ -25,7 +25,7 @@
 const BASE = 65521; // largest prime smaller than 65536
 
 // const NMAX = 5552; // NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1
-// Set NMAX ~ twice less than NMAX, to keep s2 in 31-bits, because we force signed ints.
+// Set NMAX ~ twice less than original NMAX, to keep sum2 in 31-bits, because we force signed ints.
 // In other case %= will fail.
 const NMAX = 2000;
 
@@ -35,23 +35,23 @@ const adler32 = (
   len: number,
   pos: number,
 ) => {
-  let s1 = (adler & 0xffff) | 0;
-  let s2 = ((adler >>> 16) & 0xffff) | 0;
+  let sum1 = (adler & 0xffff) | 0;
+  let sum2 = ((adler >>> 16) & 0xffff) | 0;
 
   while (len !== 0) {
     let n = len > NMAX ? NMAX : len;
     len -= n;
 
     do {
-      s1 = (s1 + buf[pos++]) | 0;
-      s2 = (s2 + s1) | 0;
+      sum1 = (sum1 + buf[pos++]) | 0;
+      sum2 = (sum2 + sum1) | 0;
     } while (--n);
 
-    s1 %= BASE;
-    s2 %= BASE;
+    sum1 %= BASE;
+    sum2 %= BASE;
   }
 
-  return (s1 | (s2 << 16)) | 0;
+  return (sum1 | (sum2 << 16)) | 0;
 };
 
 export default adler32;
