@@ -1,25 +1,27 @@
-'use strict';
-
-
-const zlib_inflate = require('./zlib/inflate');
-const utils        = require('./utils/common');
-const strings      = require('./utils/strings');
-const msg          = require('./zlib/messages');
-const ZStream      = require('./zlib/zstream');
-const GZheader     = require('./zlib/gzheader');
+import zlib_inflate from "./zlib/inflate.ts";
+import utils from "./utils/common.ts";
+import strings from "./utils/strings.ts";
+import msg from "./zlib/messages.ts";
+import ZStream from "./zlib/zstream.ts";
+import GZheader from "./zlib/gzheader.ts";
 
 const toString = Object.prototype.toString;
 
 /* Public constants ==========================================================*/
 /* ===========================================================================*/
 
-const {
-  Z_NO_FLUSH, Z_FINISH,
-  Z_OK, Z_STREAM_END, Z_NEED_DICT, Z_STREAM_ERROR, Z_DATA_ERROR, Z_MEM_ERROR
-} = require('./zlib/constants');
+import {
+  Z_DATA_ERROR,
+  Z_FINISH,
+  Z_MEM_ERROR,
+  Z_NEED_DICT,
+  Z_NO_FLUSH,
+  Z_OK,
+  Z_STREAM_END,
+  Z_STREAM_ERROR,
+} from "./zlib/constants.ts";
 
 /* ===========================================================================*/
-
 
 /**
  * class Inflate
@@ -55,7 +57,6 @@ const {
  *
  * Error message, if [[Inflate.err]] != 0
  **/
-
 
 /**
  * new Inflate(options)
@@ -102,7 +103,7 @@ function Inflate(options) {
   this.options = utils.assign({
     chunkSize: 1024 * 64,
     windowBits: 15,
-    to: ''
+    to: "",
   }, options || {});
 
   const opt = this.options;
@@ -111,12 +112,14 @@ function Inflate(options) {
   // because we have no header for autodetect.
   if (opt.raw && (opt.windowBits >= 0) && (opt.windowBits < 16)) {
     opt.windowBits = -opt.windowBits;
-    if (opt.windowBits === 0) { opt.windowBits = -15; }
+    if (opt.windowBits === 0) opt.windowBits = -15;
   }
 
   // If `windowBits` not defined (and mode not raw) - set autodetect flag for gzip/deflate
-  if ((opt.windowBits >= 0) && (opt.windowBits < 16) &&
-      !(options && options.windowBits)) {
+  if (
+    (opt.windowBits >= 0) && (opt.windowBits < 16) &&
+    !(options && options.windowBits)
+  ) {
     opt.windowBits += 32;
   }
 
@@ -130,17 +133,17 @@ function Inflate(options) {
     }
   }
 
-  this.err    = 0;      // error code, if happens (0 = Z_OK)
-  this.msg    = '';     // error message
-  this.ended  = false;  // used to avoid multiple onEnd() calls
-  this.chunks = [];     // chunks of compressed data
+  this.err = 0; // error code, if happens (0 = Z_OK)
+  this.msg = ""; // error message
+  this.ended = false; // used to avoid multiple onEnd() calls
+  this.chunks = []; // chunks of compressed data
 
-  this.strm   = new ZStream();
+  this.strm = new ZStream();
   this.strm.avail_out = 0;
 
-  let status  = zlib_inflate.inflateInit2(
+  let status = zlib_inflate.inflateInit2(
     this.strm,
-    opt.windowBits
+    opt.windowBits,
   );
 
   if (status !== Z_OK) {
@@ -154,9 +157,9 @@ function Inflate(options) {
   // Setup dictionary
   if (opt.dictionary) {
     // Convert data if needed
-    if (typeof opt.dictionary === 'string') {
+    if (typeof opt.dictionary === "string") {
       opt.dictionary = strings.string2buf(opt.dictionary);
-    } else if (toString.call(opt.dictionary) === '[object ArrayBuffer]') {
+    } else if (toString.call(opt.dictionary) === "[object ArrayBuffer]") {
       opt.dictionary = new Uint8Array(opt.dictionary);
     }
     if (opt.raw) { //In raw mode we need to set the dictionary early
@@ -205,7 +208,7 @@ Inflate.prototype.push = function (data, flush_mode) {
   else _flush_mode = flush_mode === true ? Z_FINISH : Z_NO_FLUSH;
 
   // Convert data if needed
-  if (toString.call(data) === '[object ArrayBuffer]') {
+  if (toString.call(data) === "[object ArrayBuffer]") {
     strm.input = new Uint8Array(data);
   } else {
     strm.input = data;
@@ -235,11 +238,12 @@ Inflate.prototype.push = function (data, flush_mode) {
     }
 
     // Skip snyc markers if more data follows and not raw mode
-    while (strm.avail_in > 0 &&
-           status === Z_STREAM_END &&
-           strm.state.wrap > 0 &&
-           data[strm.next_in] !== 0)
-    {
+    while (
+      strm.avail_in > 0 &&
+      status === Z_STREAM_END &&
+      strm.state.wrap > 0 &&
+      data[strm.next_in] !== 0
+    ) {
       zlib_inflate.inflateReset(strm);
       status = zlib_inflate.inflate(strm, _flush_mode);
     }
@@ -260,9 +264,7 @@ Inflate.prototype.push = function (data, flush_mode) {
 
     if (strm.next_out) {
       if (strm.avail_out === 0 || status === Z_STREAM_END) {
-
-        if (this.options.to === 'string') {
-
+        if (this.options.to === "string") {
           let next_out_utf8 = strings.utf8border(strm.output, strm.next_out);
 
           let tail = strm.next_out - next_out_utf8;
@@ -271,12 +273,20 @@ Inflate.prototype.push = function (data, flush_mode) {
           // move tail & realign counters
           strm.next_out = tail;
           strm.avail_out = chunkSize - tail;
-          if (tail) strm.output.set(strm.output.subarray(next_out_utf8, next_out_utf8 + tail), 0);
+          if (tail) {
+            strm.output.set(
+              strm.output.subarray(next_out_utf8, next_out_utf8 + tail),
+              0,
+            );
+          }
 
           this.onData(utf8str);
-
         } else {
-          this.onData(strm.output.length === strm.next_out ? strm.output : strm.output.subarray(0, strm.next_out));
+          this.onData(
+            strm.output.length === strm.next_out
+              ? strm.output
+              : strm.output.subarray(0, strm.next_out),
+          );
         }
       }
     }
@@ -298,7 +308,6 @@ Inflate.prototype.push = function (data, flush_mode) {
   return true;
 };
 
-
 /**
  * Inflate#onData(chunk) -> Void
  * - chunk (Uint8Array|String): output data. When string output requested,
@@ -310,7 +319,6 @@ Inflate.prototype.push = function (data, flush_mode) {
 Inflate.prototype.onData = function (chunk) {
   this.chunks.push(chunk);
 };
-
 
 /**
  * Inflate#onEnd(status) -> Void
@@ -324,8 +332,8 @@ Inflate.prototype.onData = function (chunk) {
 Inflate.prototype.onEnd = function (status) {
   // On success - join
   if (status === Z_OK) {
-    if (this.options.to === 'string') {
-      this.result = this.chunks.join('');
+    if (this.options.to === "string") {
+      this.result = this.chunks.join("");
     } else {
       this.result = utils.flattenChunks(this.chunks);
     }
@@ -334,7 +342,6 @@ Inflate.prototype.onEnd = function (status) {
   this.err = status;
   this.msg = this.strm.msg;
 };
-
 
 /**
  * inflate(data[, options]) -> Uint8Array|String
@@ -386,7 +393,6 @@ function inflate(input, options) {
   return inflator.result;
 }
 
-
 /**
  * inflateRaw(data[, options]) -> Uint8Array|String
  * - data (Uint8Array): input data to decompress.
@@ -401,7 +407,6 @@ function inflateRaw(input, options) {
   return inflate(input, options);
 }
 
-
 /**
  * ungzip(data[, options]) -> Uint8Array|String
  * - data (Uint8Array): input data to decompress.
@@ -411,9 +416,8 @@ function inflateRaw(input, options) {
  * by header.content. Done for convenience.
  **/
 
-
 module.exports.Inflate = Inflate;
 module.exports.inflate = inflate;
 module.exports.inflateRaw = inflateRaw;
 module.exports.ungzip = inflate;
-module.exports.constants = require('./zlib/constants');
+module.exports.constants = require("./zlib/constants");
